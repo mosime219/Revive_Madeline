@@ -16,7 +16,7 @@ pipeline {
             }
         }
 
-        stage('Build and Unit Test') { 
+        stage('Build and Unit Test') {
             when {
                 expression { !params.RUN_SONARQUBE } // Execute only if RUN_SONARQUBE is false
             }
@@ -89,7 +89,7 @@ pipeline {
                     echo 'Pushing Docker images to Docker Hub...'
                     sh '''
                         docker push mosime/revive:ui 
-                       '''
+                    '''
                 }
             }
         }
@@ -106,8 +106,10 @@ pipeline {
 
     post {
         always {
-            script {
-                cleanWs() // Clean the workspace at the end
+            node {
+                script {
+                    cleanWs() // Ensure the cleanWs step is inside a node block
+                }
             }
         }
     }
