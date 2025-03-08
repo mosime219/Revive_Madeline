@@ -5,9 +5,9 @@ pipeline {
         booleanParam(name: 'RUN_SONARQUBE', defaultValue: false, description: 'Run SonarQube analysis?')
     }
 
-    environment {
-        SONAR_TOKEN = credentials('sonar') // Sonar token
-    }
+    // environment {
+    //     SONAR_TOKEN = credentials('sonar') // Sonar token
+    // }
 
     stages {
         stage('Checkout') {
@@ -36,29 +36,29 @@ pipeline {
             }
         }
 
-        stage('SonarQube Analysis') {
-            when {
-                expression { params.RUN_SONARQUBE } // Execute only if RUN_SONARQUBE is true
-            }
-            environment {
-                SCANNER_HOME = tool 'sonar' // Define the SonarQube scanner tool
-            }
-            steps {
-                script {
-                    // Perform SonarQube analysis using the SonarQube plugin
-                    withSonarQubeEnv('sonar') { // 'Sonar' is the SonarQube server configured in Jenkins
-                        sh """
-                            ${SCANNER_HOME}/bin/sonar-scanner \
-                            -Dsonar.projectKey=UI-microserve \
-                            -Dsonar.host.url=http://54.82.200.211:9000/ \
-                            -Dsonar.login=$SONAR_TOKEN \
-                            -Dsonar.sources=./revive-UI/ui \
-                            -Dsonar.java.binaries=./revive-UI/ui/src/main/java
-                        """
-                    }
-                }
-            }
-        }
+        // stage('SonarQube Analysis') {
+        //     when {
+        //         expression { params.RUN_SONARQUBE } // Execute only if RUN_SONARQUBE is true
+        //     }
+        //     environment {
+        //         SCANNER_HOME = tool 'sonar' // Define the SonarQube scanner tool
+        //     }
+        //     steps {
+        //         script {
+        //             // Perform SonarQube analysis using the SonarQube plugin
+        //             withSonarQubeEnv('sonar') { // 'Sonar' is the SonarQube server configured in Jenkins
+        //                 sh """
+        //                     ${SCANNER_HOME}/bin/sonar-scanner \
+        //                     -Dsonar.projectKey=UI-microserve \
+        //                     -Dsonar.host.url=http://54.82.200.211:9000/ \
+        //                     -Dsonar.login=$SONAR_TOKEN \
+        //                     -Dsonar.sources=./revive-UI/ui \
+        //                     -Dsonar.java.binaries=./revive-UI/ui/src/main/java
+        //                 """
+        //             }
+        //         }
+        //     }
+        // }
 
         stage('Docker Hub Login') {
             steps {
