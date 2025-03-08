@@ -1,0 +1,152 @@
+version: '3.8'
+
+services:
+  # Frontend UI Service
+  ui:
+    image: mosime/revive:ui
+    ports:
+      - "8080:8080"
+    depends_on:
+      - orders
+      - checkout
+      - carts
+      - catalog
+      - assets
+    networks:
+      - frontend-network
+    restart: always
+
+  # Microservices
+  orders:
+    image: mosime/revive:orders
+    depends_on:
+      - orders-db
+      - rabbitmq
+    environment:
+      - DB_HOST=orders-db
+      - DB_PORT=3306
+      - DB_USER=orderuser
+      - DB_PASSWORD=orderpass
+      - RABBITMQ_HOST=rabbitmq
+    networks:
+      - frontend-network
+      - backend-network
+    restart: always
+
+  checkout:
+    image: mosime/revive:checkout
+    depends_on:
+      - checkout-db
+      - rabbitmq
+    environment:
+      - REDIS_HOST=checkout-db
+      - REDIS_PORT=6379
+      - RABBITMQ_HOST=rabbitmq
+    networks:
+      - frontend-network
+      - backend-network
+    restart: always
+
+  carts:
+    image: mosime/revive:cart
+    depends_on:
+      - carts-db
+    environment:
+      - DYNAMODB_ENDPOINT=carts-db
+      - DYNAMODB_REGION=local
+    networks:
+      - frontend-network
+      - backend-network
+    restart: always
+
+  catalog:
+    image: mosime/revive:catalog
+    depends_on:
+      - catalog-db
+    environment:
+      - DB_HOST=catalog-db
+      - DB_PORT=3306
+      - DB_USER=cataloguser
+      - DB_PASSWORD=catalogpass
+    networks:
+      - frontend-network
+      - backend-network
+    restart: always
+
+  assets:
+    image: keuleu237/maryam:revive-assets
+    networks:
+      - frontend-network
+    restart: always
+
+  # Databases
+  orders-db:
+    image: mosime/revive:orders-db
+    environment:
+      - MYSQL_DATABASE=orders
+      - MYSQL_USER=orderuser
+      - MYSQL_PASSWORD=orderpass
+      - MYSQL_ROOT_PASSWORD=rootpass
+    volumes:
+      - orders-db-data:/var/lib/mysql
+    networks:
+      - backend-network
+    restart: always
+
+  checkout-db:
+    image: keuleu237/maryam:revive-checkout-db
+    volumes:
+      - checkout-db-data:/data
+    networks:
+      - backend-network
+    restart: always
+
+  carts-db:
+    image: mosime/revive:cart-db
+    ports:
+      - "8000:8000"
+    volumes:
+      - carts-db-data:/home/dynamodblocal/data
+    networks:
+      - backend-network
+    restart: always
+
+  catalog-db:
+    image: mosime/revive:catalog-db
+    environment:
+      - MYSQL_DATABASE=catalog
+      - MYSQL_USER=cataloguser
+      - MYSQL_PASSWORD=catalogpass
+      - MYSQL_ROOT_PASSWORD=rootpass
+    volumes:
+      - catalog-db-data:/var/lib/mysql
+    networks:
+      - backend-network
+    restart: always
+
+  # Message Broker
+  rabbitmq:
+    image: mosime/revive:orders-rabbit-mq
+    ports:
+      - "5672:5672"   # AMQP port
+      - "15672:15672" # Management UI
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - backend-network
+    restart: always
+
+# Networks
+networks:
+  frontend-network:
+    driver: bridge
+  backend-network:
+    driver: bridge
+
+# Volumes
+volumes:
+  orders-db-data:
+  checkout-db-data:
+  carts-db-data:
+  catalog-db-data:
+  rabbitmq-data:
