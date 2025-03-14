@@ -53,7 +53,7 @@ pipeline {
                             -Dsonar.host.url=http://54.235.33.175:9000/ \
                             -Dsonar.login=$SONAR_TOKEN \
                             -Dsonar.sources=./revive-ui/ui \
-                            -Dsonar.java.binaries=./revive-UI/ui/src/main/java
+                            -Dsonar.java.binaries=./revive-ui/ui/src/main/java
                         """
                     }
                 }
