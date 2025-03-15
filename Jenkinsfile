@@ -1,163 +1,118 @@
 pipeline {
     agent any
-    environment {
-		DOCKERHUB_CREDENTIALS=credentials('del-docker-hub-auth')
-	}
-    options {
-        buildDiscarder(logRotator(numToKeepStr: '20'))
-        disableConcurrentBuilds()
-        timeout (time: 60, unit: 'MINUTES')
-        timestamps()
-      }
-    stages {
 
-        stage('testing') {
-            agent {
-                docker { image 'maven:3.8.5-openjdk-18' }
-            }
+    parameters {
+        booleanParam(name: 'RUN_SONARQUBE', defaultValue: false, description: 'Run SonarQube analysis?')
+    }
+
+    environment {
+        SONAR_TOKEN = credentials('sonar-token') // Sonar token
+    }
+
+    stages {
+        stage('Checkout') {
             steps {
-                sh'''
-                cd orders
-                mvn test 
-                '''
+                git branch: 'orders', url: 'git@github.com:mosime219/Revive_Madeline.git', credentialsId: 'ssh-Agent'
             }
         }
 
-
-         stage('SonarQube analysis') {
+        stage('Build and Unit Test') { 
+            when {
+                expression { params.RUN_SONARQUBE } // Execute only if RUN_SONARQUBE is false
+            }
             agent {
                 docker {
-                  image 'sonarsource/sonar-scanner-cli:5.0.1'
-                }
-               }
-               environment {
-        CI = 'true'
-        scannerHome='/opt/sonar-scanner'
-    }
-            steps{
-                withSonarQubeEnv('Sonar') {
-                    sh "${scannerHome}/bin/sonar-scanner"
+                    image 'maven:3.8.7-openjdk-18'
+                    args '-u root'
                 }
             }
-        }
-
-
-    stage('Login') {
-
-			steps {
-				sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
-			}
-		}
-        stage('build-image-api') {
             steps {
+                echo 'Building project and running Unit Tests...'
                 sh '''
-                TAG=$(git rev-parse --short=6 HEAD)
-                cd ${WORKSPACE}/orders
-                docker build -t devopseasylearning/eric_do_it_yourself_orders:${TAG} .
+                cd revive-orders/orders
+                mvn clean compile
+                mvn test
                 '''
             }
         }
 
-        stage('build-image-db') {
+        stage('SonarQube Analysis') {
+            when {
+                expression { params.RUN_SONARQUBE } // Execute only if RUN_SONARQUBE is true
+            }
+            environment {
+                SCANNER_HOME = tool 'sonar' // Define the SonarQube scanner tool
+            }
             steps {
-                sh '''
-                TAG=$(git rev-parse --short=6 HEAD)
-                cd ${WORKSPACE}/orders
-                docker build -t devopseasylearning/eric_do_it_yourself_orders_db:${TAG} . -f Dockerfile-db
-                '''
+                script {
+                    // Perform SonarQube analysis using the SonarQube plugin
+                    withSonarQubeEnv('sonar') { // 'Sonar' is the SonarQube server configured in Jenkins
+                        sh """
+                            ${SCANNER_HOME}/bin/sonar-scanner \
+                            -Dsonar.projectKey=orders \
+                            -Dsonar.host.url=http://54.162.200.75:9000/ \
+                            -Dsonar.login=$SONAR_TOKEN \
+                            -Dsonar.sources=./revive-orders/orders \
+                            -Dsonar.java.binaries=./revive-orders/orders/src/main/java
+                        """
+                    }
+                }
             }
         }
 
-        stage('build-image-db-rabbitmq') {
+        stage('Docker Hub Login') {
             steps {
-                sh '''
-                TAG=$(git rev-parse --short=6 HEAD)
-                cd ${WORKSPACE}/orders
-                docker build -t devopseasylearning/eric_do_it_yourself_orders_db_rabbitmq:${TAG} . -f Dockerfile-rabbit-mq
-                '''
+                script {
+                    echo 'Logging into Docker Hub...'
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_HUB_USER', passwordVariable: 'DOCKER_HUB_PASS')]) {
+                        sh "echo ${DOCKER_HUB_PASS} | docker login -u ${DOCKER_HUB_USER} --password-stdin"
+                    }
+                }
             }
         }
 
-
-
-        stage('Push-image') {
-           when{ 
-         expression {
-           env.GIT_BRANCH == 'origin/main' }
-           }
-           steps {
-               sh '''
-               TAG=$(git rev-parse --short=6 HEAD)
-           docker push devopseasylearning/eric_do_it_yourself_orders_db:${TAG} 
-           docker push devopseasylearning/eric_do_it_yourself_orders_db_rabbitmq:${TAG}
-           docker push devopseasylearning/eric_do_it_yourself_orders:${TAG}
-           
-               '''
-           }
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    echo 'Building Docker image...'
+                    sh '''
+                        cd revive-orders/orders
+                        docker build -t mosime/revive:orders .
+                        docker build -f Dockerfile-db -t mosime/revive:db-orders .
+                        docker build -f Dockerfile-rabbit-mq -t mosime/revive:rabbit-mq-orders .
+                    '''
+                }
+            }
         }
 
+        stage('Push Docker Images') {
+            steps {
+                script {
+                    echo 'Pushing Docker images to Docker Hub...'
+                    sh '''
+                        docker push mosime/revive:orders
+                        docker push mosime/revive:rabbit-mq-orders
+                        docker push mosime/revive:db-orders
+                    '''
+                }
+            }
+        }
 
-stage('trigger-deployment') {
-    agent { 
-        label 'deploy' 
-    }
-    when { 
-        expression { 
-            env.GIT_BRANCH == 'origin/main' 
+        stage('Clean Workspace') {
+            steps {
+                script {
+                    echo 'Cleaning up the workspace...'
+                    cleanWs() // Clean the workspace at the end
+                }
+            }
         }
     }
-    steps {
-        sh '''
-            TAG=$(git rev-parse --short=6 HEAD)
-            rm -rf Eric-do-it-yourself-devops-automation || true
-            git clone git@github.com:DEL-ORG/Eric-do-it-yourself-devops-automation.git 
-            cd Eric-do-it-yourself-devops-automation/chart
-            yq eval '.orders_db_rabbitmq.tag = "'"$TAG"'"' -i dev-values.yaml
-            yq eval '.orders_db.tag = "'"$TAG"'"' -i dev-values.yaml
-            yq eval '.orders.tag = "'"$TAG"'"' -i dev-values.yaml
-            git config --global user.name "devopseasylearning"
-            git config --global user.email info@devopseasylearning.com
-            
-            git add -A
-            if git diff-index --quiet HEAD; then
-                echo "No changes to commit"
-            else
-                git commit -m "updating Orders to ${TAG}"
-                git push origin main
-            fi
-        '''
+
+    post {
+        always {
+            script {
+                cleanWs() // Clean the workspace at the end
+            }
+        }
     }
 }
-
-
-
-    }
-
-
-
-   post {
-   
-   success {
-      slackSend (channel: '#development-alerts', color: 'good', message: "SUCCESSFUL: Application Eric-do-it-yourself-orders  Job '${env.JOB_NAME} [${env.TAG}]' (${env.BUILD_URL})")
-    }
-
- 
-    unstable {
-      slackSend (channel: '#development-alerts', color: 'warning', message: "UNSTABLE: Application Eric-do-it-yourself-orders  Job '${env.JOB_NAME} [${env.TAG}]' (${env.BUILD_URL})")
-    }
-
-    failure {
-      slackSend (channel: '#development-alerts', color: '#FF0000', message: "FAILURE: Application Eric-do-it-yourself-orders Job '${env.JOB_NAME} [${env.TAG}]' (${env.BUILD_URL})")
-    }
-   
-    cleanup {
-      deleteDir()
-    }
-}
-
-
-
-
-
-}
-
