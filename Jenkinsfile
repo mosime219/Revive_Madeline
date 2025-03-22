@@ -76,7 +76,7 @@ pipeline {
                 script {
                     echo 'Building Docker image...'
                     sh '''
-                        cd revive-Orders/orders
+                        cd revive-cart/cart
                         docker build -t mosime/revive:cart-01 .
                         docker build -f Dockerfile-dynamodb -t mosime/revive:cart-db-01 .
                         
