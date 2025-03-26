@@ -12,7 +12,7 @@ pipeline {
     stages {
         stage('checkout') {
             steps {
-                git branch: 'cart', url: 'git@github.com:mosime219/Revive_Madeline.git', credentialsId: 'ssh-Agent'
+                git branch: 'checkout', url: 'git@github.com:mosime219/Revive_Madeline.git', credentialsId: 'ssh-Agent'
             }
         }
 
@@ -29,7 +29,8 @@ pipeline {
             steps {
                 echo 'Building project and running Unit Tests...'
                 sh '''
-                cd revive-orders/orders
+                cd 
+                -checkout/checkout
                 mvn clean compile
                 mvn test
                 '''
@@ -49,11 +50,13 @@ pipeline {
                     withSonarQubeEnv('sonar') { // 'Sonar' is the SonarQube server configured in Jenkins
                         sh """
                             ${SCANNER_HOME}/bin/sonar-scanner \
-                            -Dsonar.projectKey=Orders-microserve \
-                            -Dsonar.host.url=http://3.91.249.70:9000/ \
+                            -Dsonar.projectKey=checkout\
+                            -Dsonar.host.url=http://54.235.28.220:9000/ \
                             -Dsonar.login=$SONAR_TOKEN \
-                            -Dsonar.sources=./revive-orders/orders \
-                            -Dsonar.java.binaries=./revive-Orders/orders/src/main/java
+                            -Dsonar.sources=./
+                            -checkout/checkout\
+                            -Dsonar.java.binaries=./
+                            -checkout/checkout/src/main/java
                         """
                     }
                 }
@@ -64,7 +67,7 @@ pipeline {
             steps {
                 script {
                     echo 'Logging into Docker Hub...'
-                    withCredentials([usernamePassword(credentialsId: 'dockerhub-tgitech', usernameVariable: 'DOCKER_HUB_USER', passwordVariable: 'DOCKER_HUB_PASS')]) {
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_HUB_USER', passwordVariable: 'DOCKER_HUB_PASS')]) {
                         sh "echo ${DOCKER_HUB_PASS} | docker login -u ${DOCKER_HUB_USER} --password-stdin"
                     }
                 }
@@ -76,10 +79,15 @@ pipeline {
                 script {
                     echo 'Building Docker image...'
                     sh '''
-                        cd revive-Orders/orders
-                        docker build -t tgitech/revive-orders:01 .
-                        docker build -f Dockerfile-db -t tgitech/revive-orders:db-01 .
-                        docker build -f Dockerfile-rabbit-mq -t tgitech/revive-orders:rabbit-mq-01 .
+                        cd 
+                        -checkout/checkout
+                        docker build -t mosime/
+                        /
+                        -checkout:01 .
+                        docker build -f Dockerfile-db -t/
+                        checkout:db-01 .
+                        docker build -f Dockerfile-rabbit-mq -t checkout/
+                        -checkout:rabbit-mq-01 .
                     '''
                 }
             }
@@ -90,9 +98,12 @@ pipeline {
                 script {
                     echo 'Pushing Docker images to Docker Hub...'
                     sh '''
-                        docker push tgitech/revive-orders:01
-                        docker push tgitech/revive-orders:rabbit-mq-01
-                        docker push tgitech/revive-orders:db-01
+                        docker push checkout/
+                        -checkout:01
+                        docker push checkout/
+                        -checkout:rabbit-mq-01
+                        docker push checkout/
+                        -checkout:db-01
                     '''
                 }
             }
