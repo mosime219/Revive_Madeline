@@ -30,7 +30,7 @@ pipeline {
                 echo 'Building project and running Unit Tests...'
                 sh '''
                 cd 
-                -checkout/checkout
+                revive-checkout/checkout
                 mvn clean compile
                 mvn test
                 '''
@@ -53,10 +53,8 @@ pipeline {
                             -Dsonar.projectKey=checkout\
                             -Dsonar.host.url=http://54.235.28.220:9000/ \
                             -Dsonar.login=$SONAR_TOKEN \
-                            -Dsonar.sources=./
-                            -checkout/checkout\
-                            -Dsonar.java.binaries=./
-                            -checkout/checkout/src/main/java
+                            -Dsonar.sources=./revive-checkout/checkout \
+                            -Dsonar.java.binaries=./revive-checkout/checkout/src/main/java
                         """
                     }
                 }
@@ -80,14 +78,9 @@ pipeline {
                     echo 'Building Docker image...'
                     sh '''
                         cd 
-                        -checkout/checkout
-                        docker build -t mosime/
-                        /
-                        -checkout:01 .
-                        docker build -f Dockerfile-db -t/
-                        checkout:db-01 .
-                        docker build -f Dockerfile-rabbit-mq -t checkout/
-                        -checkout:rabbit-mq-01 .
+                        revive-checkout/checkout
+                        docker build -t mosime/revive:checkout:01 .
+                        docker build -f Dockerfile-db -t mosime/revive:checkout-db-01 .
                     '''
                 }
             }
@@ -98,12 +91,8 @@ pipeline {
                 script {
                     echo 'Pushing Docker images to Docker Hub...'
                     sh '''
-                        docker push checkout/
-                        -checkout:01
-                        docker push checkout/
-                        -checkout:rabbit-mq-01
-                        docker push checkout/
-                        -checkout:db-01
+                        docker push mosime/revive:checkout-01
+                        docker push mosime/revive:checkout-db-01
                     '''
                 }
             }
