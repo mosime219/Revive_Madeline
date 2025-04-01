@@ -30,7 +30,7 @@ pipeline {
                 echo 'Building project and running Unit Tests...'
                 sh '''
                 cd 
-                revive-checkout/checkout
+                ./revive-checkout/checkout
                 npm install
                 npm test --passWithNoTests || true
                 '''
