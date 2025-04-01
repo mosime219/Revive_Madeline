@@ -76,8 +76,7 @@ pipeline {
                 script {
                     echo 'Building Docker image...'
                     sh '''
-                        cd 
-                        revive-checkout/checkout
+                        cd revive-checkout/checkout
                         docker build -t mosime/revive:checkout-01 .
                         docker build -f Dockerfile-db -t mosime/revive:checkout-db-01 .
                     '''
