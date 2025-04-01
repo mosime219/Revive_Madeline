@@ -50,7 +50,7 @@ pipeline {
                         sh """
                             ${SCANNER_HOME}/bin/sonar-scanner \
                             -Dsonar.projectKey=checkout\
-                            -Dsonar.host.url=http://54.235.28.220:9000/ \
+                            -Dsonar.host.url=http://54.161.33.220:9000/ \
                             -Dsonar.login=$SONAR_TOKEN \
                             -Dsonar.sources=./revive-checkout/checkout \
                             -Dsonar.java.binaries=./revive-checkout/checkout/src/main/java
